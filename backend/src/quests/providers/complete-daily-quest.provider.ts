@@ -4,7 +4,6 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 import { DailyQuest } from '../entities/daily-quest.entity';
 import { User } from '../../users/user.entity';
@@ -18,7 +17,6 @@ export class CompleteDailyQuestProvider {
   private readonly BONUS_XP = 100;
 
   constructor(
-    @InjectRepository(User)
     private readonly updateStreakProvider: UpdateStreakProvider,
     private readonly dataSource: DataSource,
   ) {}
