@@ -50,9 +50,7 @@ export class GetTodaysDailyQuestStatusProvider {
       this.logger.log(
         `No quest found for user ${userId}, auto-generating quest`,
       );
-      // Use the existing provider to generate the full quest
-      // This ensures consistency with the main getTodaysDailyQuest endpoint
-      // const fullQuest = await this.getTodaysDailyQuestProvider.execute(userId);
+      await this.getTodaysDailyQuestProvider.execute(userId, userTimeZone);
 
       // Fetch the newly created quest with status fields
       dailyQuest = await this.dailyQuestRepository.findOne({
