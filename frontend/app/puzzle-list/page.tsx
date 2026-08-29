@@ -4,7 +4,12 @@ import React, { useCallback, useEffect, useState, useMemo } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import FilterBar from '@/components/puzzles/FilterBar';
 import { usePuzzles } from '@/hooks/usePuzzles';
-import type { PuzzleDifficulty, PuzzleFilters } from '@/lib/types/puzzles';
+import {
+  puzzleDescription,
+  puzzleTitle,
+  type PuzzleDifficulty,
+  type PuzzleFilters,
+} from '@/lib/types/puzzles';
 import { Puzzle as PuzzleIcon, Clock, Zap } from 'lucide-react';
 import Pagination from '@/components/ui/Pagination';
 import { EmptyState, ErrorState, LoadingState } from '@/components/ui/StateDisplay';
@@ -268,10 +273,10 @@ function PuzzleListContent() {
               <PuzzleCard
                 key={puzzle.id}
                 id={puzzle.id}
-                title={puzzle.title}
-                description={puzzle.description}
+                title={puzzleTitle(puzzle)}
+                description={puzzleDescription(puzzle)}
                 difficulty={puzzle.difficulty}
-                type={puzzle.type}
+                type={puzzle.type ?? "logic"}
                 timeLimit={puzzle.timeLimit}
               />
             ))}

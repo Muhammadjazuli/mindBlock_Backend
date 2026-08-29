@@ -1,13 +1,7 @@
-/**
- * Dashboard API Module
- * 
- * Handles all API calls related to dashboard data fetching.
- * Includes endpoints for stats and categories.
- */
+import { fetchCurrentUser } from "@/lib/api/authApi";
+import { API_BASE_URL, authHeaders } from "@/lib/api/config";
+import { fetchStreak } from "@/lib/api/streakApi";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:3000";
-
-// Types for API responses
 export interface DashboardStats {
   streak: number;
   points: number;
@@ -34,28 +28,9 @@ export interface CategoriesResponse {
   error?: string;
 }
 
-// Helper function to get auth headers
-function getAuthHeaders(): Record<string, string> {
-  if (typeof window === "undefined") {
-    return {};
-  }
-
-  const token = window.localStorage.getItem("accessToken");
-
-  if (!token) {
-    return {};
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
-  };
-}
-
-// Helper function to handle API responses
 async function handleResponse<T>(response: Response): Promise<T> {
   const contentType = response.headers.get("Content-Type");
   const isJson = contentType && contentType.includes("application/json");
-
   const data = isJson ? await response.json() : null;
 
   if (!response.ok) {
@@ -68,37 +43,31 @@ async function handleResponse<T>(response: Response): Promise<T> {
   return data as T;
 }
 
-/**
- * Fetch dashboard stats including streak, points, and daily quest progress
- * GET /dashboard/stats
- */
 export async function fetchDashboardStats(): Promise<DashboardStats> {
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...getAuthHeaders(),
+  const [streak, user, questStatus] = await Promise.all([
+    fetchStreak().catch(() => null),
+    fetchCurrentUser().catch(() => null),
+    fetch(`${API_BASE_URL}/daily-quest/status`, {
+      headers: authHeaders(),
+    })
+      .then((res) => (res.ok ? res.json() : null))
+      .catch(() => null),
+  ]);
+
+  return {
+    streak: streak?.currentStreak ?? 0,
+    points: user?.xp ?? 0,
+    dailyQuestProgress: {
+      completed: questStatus?.completedQuestions ?? 0,
+      total: questStatus?.totalQuestions ?? 10,
+    },
   };
-
-  const response = await fetch(`${API_BASE_URL}/dashboard/stats`, {
-    method: "GET",
-    headers,
-  });
-
-  return handleResponse<DashboardStats>(response);
 }
 
-/**
- * Fetch all available categories
- * GET /categories
- */
 export async function fetchCategories(): Promise<CategoriesResponse> {
-  const headers: HeadersInit = {
-    "Content-Type": "application/json",
-    ...getAuthHeaders(),
-  };
-
   const response = await fetch(`${API_BASE_URL}/categories`, {
     method: "GET",
-    headers,
+    headers: authHeaders(),
   });
 
   return handleResponse<CategoriesResponse>(response);

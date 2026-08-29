@@ -15,6 +15,8 @@ import {
   PuzzleSummary,
   SubmitAttemptResult,
 } from "@/lib/types/challengeAttempt";
+import { useStreak } from "@/hooks/useStreak";
+import { useAuth } from "@/hooks/useAuth";
 
 const STORAGE_KEY = "activeGameSession";
 
@@ -86,6 +88,8 @@ export default function SolvePuzzlePage() {
   const [selected, setSelected] = useState<string | null>(null);
   const [result, setResult] = useState<SubmitAttemptResult | null>(null);
   const [startedAtMs, setStartedAtMs] = useState<number>(Date.now());
+  const { fetchStreak } = useStreak({ autoFetch: false });
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
     let cancelled = false;
@@ -194,6 +198,9 @@ export default function SolvePuzzlePage() {
       setResult(res);
       setAttempt(res.attempt);
       setPhase("result");
+      if (res.isCorrect) {
+        void fetchStreak();
+      }
     } catch (err) {
       setErrorMessage(
         err instanceof ChallengeAttemptApiError
@@ -202,7 +209,7 @@ export default function SolvePuzzlePage() {
       );
       setPhase("error");
     }
-  }, [attempt, selected, startedAtMs]);
+  }, [attempt, selected, startedAtMs, fetchStreak]);
 
   const handleContinue = useCallback(() => {
     if (!result?.nextChallenge) return;
@@ -264,6 +271,13 @@ export default function SolvePuzzlePage() {
         <h2 className="text-[28px] mt-10 font-semibold text-center">
           {puzzle.question}
         </h2>
+
+        {!isAuthenticated && (
+          <p className="text-center text-sm text-amber-300">
+            Sign in to submit an answer and earn XP. Guest sessions can browse
+            puzzles only.
+          </p>
+        )}
 
         <div className="space-y-7">
           {puzzle.options.map((optionText, index) => {

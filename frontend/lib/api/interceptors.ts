@@ -1,10 +1,12 @@
-// frontend/lib/api/interceptors.ts
-import type { AxiosInstance } from 'axios';
-import { handleApiError } from './error-handler';
+import type { AxiosInstance, InternalAxiosRequestConfig } from "axios";
+import { getAccessToken } from "./config";
+import { handleApiError } from "./error-handler";
+
+type RetryConfig = InternalAxiosRequestConfig & { __retryCount?: number };
 
 export function setupInterceptors(api: AxiosInstance) {
   api.interceptors.request.use((config) => {
-    const token = localStorage.getItem('jwt');
+    const token = getAccessToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
@@ -14,17 +16,26 @@ export function setupInterceptors(api: AxiosInstance) {
   api.interceptors.response.use(
     (response) => response,
     async (error) => {
-      const { status } = error.response || {};
-      if (status === 401) {
-        window.location.href = '/login';
+      const status = error.response?.status as number | undefined;
+      const config = (error.config ?? {}) as RetryConfig;
+      const method = (config.method ?? "get").toLowerCase();
+
+      if (status === 401 && typeof window !== "undefined") {
+        if (!window.location.pathname.startsWith("/auth")) {
+          window.location.href = "/auth/signin";
+        }
+        return Promise.reject(handleApiError(error));
       }
 
-      // Retry logic: up to 3 attempts
-      const config = error.config;
-      if (!config.__retryCount) config.__retryCount = 0;
-      if (config.__retryCount < 3) {
-        config.__retryCount += 1;
-        return api(config);
+      const retryable =
+        method === "get" &&
+        status !== undefined &&
+        status >= 500 &&
+        (config.__retryCount ?? 0) < 2;
+
+      if (retryable) {
+        config.__retryCount = (config.__retryCount ?? 0) + 1;
+        return api.request(config);
       }
 
       return Promise.reject(handleApiError(error));
