@@ -1,0 +1,78 @@
+import { forwardRef, Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthService } from './providers/auth.service';
+import { UsersModule } from '../users/users.module';
+import { User } from '../users/user.entity';
+import { SignInProvider } from './providers/sign-in.provider';
+import { RegisterProvider } from './providers/register.provider';
+import { ConfigModule } from '@nestjs/config';
+import { JwtModule } from '@nestjs/jwt';
+import { HashingProvider } from './providers/hashing.provider';
+import { BcryptProvider } from './providers/bcrypt.provider';
+import jwtConfig from './authConfig/jwt.config';
+import { AuthController } from './controllers/auth.controller';
+import { RefreshTokensProvider } from './providers/refreshTokensProvider';
+import { GenerateTokensProvider } from './providers/generate-tokens.provider';
+import { GoogleAuthenticationService } from './social/providers/google-authentication.service';
+import { GoogleAuthenticationController } from './social/google-auth.controller';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
+import { StellarWalletLoginProvider } from './providers/wallet-login.provider';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { ForgotPasswordProvider } from './providers/forgot-password.provider';
+import { ResetPasswordProvider } from './providers/reset-password.provider';
+import { MailService } from './providers/mail.service';
+import { NonceService } from './providers/nonce.service';
+import { Session } from './entities/session.entity';
+import { SessionsProvider } from './providers/sessions.provider';
+import { GuestSessionProvider } from './providers/guest-session.provider';
+
+@Module({
+  imports: [
+    forwardRef(() => UsersModule),
+    TypeOrmModule.forFeature([User]),
+    ConfigModule.forFeature(jwtConfig),
+    TypeOrmModule.forFeature([Session]),
+    JwtModule.registerAsync(jwtConfig.asProvider()),
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000, // 1 minute
+        limit: 10, // 10 requests per minute globally
+      },
+    ]),
+  ],
+  controllers: [AuthController, GoogleAuthenticationController],
+  providers: [
+    AuthService,
+    GuestSessionProvider,
+    JwtStrategy,
+    SignInProvider,
+    RegisterProvider,
+    RefreshTokensProvider,
+    GenerateTokensProvider,
+    GoogleAuthenticationService,
+    StellarWalletLoginProvider,
+    ForgotPasswordProvider,
+    ResetPasswordProvider,
+    MailService,
+    NonceService,
+    SessionsProvider,
+    {
+      provide: HashingProvider, // Use the abstract class as a token
+      useClass: BcryptProvider, // Bind it to the concrete implementation
+    },
+    {
+      provide: APP_GUARD,
+      useClass: ThrottlerGuard,
+    },
+  ],
+  exports: [
+    JwtStrategy,
+    AuthService,
+    GuestSessionProvider,
+    HashingProvider,
+    GoogleAuthenticationService,
+    NonceService,
+  ],
+})
+export class AuthModule {}
