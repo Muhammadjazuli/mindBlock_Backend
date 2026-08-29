@@ -1,41 +1,45 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
+import {
+  createGuestSession,
+  getGuestSessionStatus,
+  type GuestSessionResponse,
+} from "../lib/api/authApi";
+import { GUEST_SESSION_KEY } from "../lib/api/config";
 
-export interface GuestSessionData {
-  sessionId: string;
-  createdAt: number;
-  expiresAt: number;
-  hintsUsed: number;
-  maxHints: number;
-}
-
-const GUEST_KEY = 'mb_guest_session';
+export type GuestSessionData = GuestSessionResponse;
 
 export function useGuestSession() {
   const [session, setSession] = useState<GuestSessionData | null>(null);
   const [timeLeft, setTimeLeft] = useState<number>(0);
   const [isExpired, setIsExpired] = useState<boolean>(false);
+  const [isStarting, setIsStarting] = useState(false);
   const [showSignupModal, setShowSignupModal] = useState<boolean>(false);
 
-  // Initialize or load guest session
   useEffect(() => {
-    const stored = localStorage.getItem(GUEST_KEY);
-    if (stored) {
-      try {
-        const parsed: GuestSessionData = JSON.parse(stored);
-        if (Date.now() > parsed.expiresAt) {
-          setIsExpired(true);
-          setShowSignupModal(true);
-        } else {
-          setSession(parsed);
-          setTimeLeft(Math.max(0, Math.floor((parsed.expiresAt - Date.now()) / 1000)));
-        }
-      } catch {
-        localStorage.removeItem(GUEST_KEY);
-      }
+    const stored = localStorage.getItem(GUEST_SESSION_KEY);
+    if (!stored) return;
+
+    try {
+      const parsed: GuestSessionData = JSON.parse(stored);
+      void getGuestSessionStatus(parsed.sessionId)
+        .then((status: { valid?: boolean; expired?: boolean; session?: GuestSessionData }) => {
+          if (status.expired || !status.valid) {
+            setIsExpired(true);
+            setShowSignupModal(true);
+            return;
+          }
+          const live = status.session ?? parsed;
+          setSession(live);
+          setTimeLeft(Math.max(0, Math.floor((live.expiresAt - Date.now()) / 1000)));
+        })
+        .catch(() => {
+          localStorage.removeItem(GUEST_SESSION_KEY);
+        });
+    } catch {
+      localStorage.removeItem(GUEST_SESSION_KEY);
     }
   }, []);
 
-  // Countdown timer effect
   useEffect(() => {
     if (!session || isExpired) return;
 
@@ -54,19 +58,18 @@ export function useGuestSession() {
     return () => clearInterval(timer);
   }, [session, isExpired]);
 
-  const startGuestSession = useCallback(() => {
-    const now = Date.now();
-    const newSession: GuestSessionData = {
-      sessionId: `guest_${Math.random().toString(36).substring(2, 9)}`,
-      createdAt: now,
-      expiresAt: now + 15 * 60 * 1000,
-      hintsUsed: 0,
-      maxHints: 2,
-    };
-    localStorage.setItem(GUEST_KEY, JSON.stringify(newSession));
-    setSession(newSession);
-    setIsExpired(false);
-    setTimeLeft(15 * 60);
+  const startGuestSession = useCallback(async () => {
+    setIsStarting(true);
+    try {
+      const created = await createGuestSession();
+      localStorage.setItem(GUEST_SESSION_KEY, JSON.stringify(created));
+      setSession(created);
+      setIsExpired(false);
+      setTimeLeft(Math.max(0, Math.floor((created.expiresAt - Date.now()) / 1000)));
+      return created;
+    } finally {
+      setIsStarting(false);
+    }
   }, []);
 
   const useHint = useCallback((): boolean => {
@@ -75,15 +78,14 @@ export function useGuestSession() {
       setShowSignupModal(true);
       return false;
     }
-
     const updated = { ...session, hintsUsed: session.hintsUsed + 1 };
     setSession(updated);
-    localStorage.setItem(GUEST_KEY, JSON.stringify(updated));
+    localStorage.setItem(GUEST_SESSION_KEY, JSON.stringify(updated));
     return true;
   }, [session, isExpired]);
 
   const clearGuestSession = useCallback(() => {
-    localStorage.removeItem(GUEST_KEY);
+    localStorage.removeItem(GUEST_SESSION_KEY);
     setSession(null);
     setIsExpired(false);
     setTimeLeft(0);
@@ -93,6 +95,7 @@ export function useGuestSession() {
     session,
     timeLeft,
     isExpired,
+    isStarting,
     showSignupModal,
     setShowSignupModal,
     startGuestSession,

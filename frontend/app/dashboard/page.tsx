@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import DailyQuestCard from "@/components/dashboard/DailyQuestCard";
 import CategoryCard from "@/components/dashboard/CategoryCard";
+import OnboardingFunnelChart from "@/src/components/analytics/OnboardingFunnelChart";
 import Image from "next/image";
 import { Flame, Gem, User } from "lucide-react";
 import { useDashboard } from "@/features/dashboard";
@@ -110,6 +111,10 @@ const Dashboard = () => {
               />
             ))}
           </div>
+        </section>
+
+        <section className="mt-10">
+          <OnboardingFunnelChart />
         </section>
       </main>
     </div>

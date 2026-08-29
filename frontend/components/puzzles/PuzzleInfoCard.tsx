@@ -1,13 +1,18 @@
 "use client";
 
 import React from "react";
-import { Puzzle } from "@/lib/types/puzzles";
+import { Puzzle, puzzleDescription } from "@/lib/types/puzzles";
 
 interface PuzzleInfoCardProps {
   puzzle: Puzzle;
 }
 
 const difficultyConfig = {
+  BEGINNER: { color: "bg-emerald-500/20 text-emerald-400", stars: "★☆☆" },
+  INTERMEDIATE: { color: "bg-yellow-500/20 text-yellow-400", stars: "★★☆" },
+  ADVANCED: { color: "bg-orange-500/20 text-orange-400", stars: "★★★" },
+  EXPERT: { color: "bg-rose-500/20 text-rose-400", stars: "★★★" },
+  ALL: { color: "bg-slate-500/20 text-slate-400", stars: "☆☆☆" },
   easy: { color: "bg-emerald-500/20 text-emerald-400", stars: "★☆☆" },
   medium: { color: "bg-yellow-500/20 text-yellow-400", stars: "★★☆" },
   hard: { color: "bg-rose-500/20 text-rose-400", stars: "★★★" },
@@ -20,12 +25,11 @@ const typeConfig = {
 };
 
 export default function PuzzleInfoCard({ puzzle }: PuzzleInfoCardProps) {
-  const difficulty = puzzle.difficulty as keyof typeof difficultyConfig;
-  const type = puzzle.type as keyof typeof typeConfig;
-  const diffConfig = difficultyConfig[difficulty];
-  const typeConfig_ = typeConfig[type];
-  const pointsReward =
-    difficulty === "easy" ? 10 : difficulty === "medium" ? 25 : 50;
+  const difficulty = (puzzle.difficulty || "BEGINNER") as keyof typeof difficultyConfig;
+  const type = (puzzle.type || "logic") as keyof typeof typeConfig;
+  const diffConfig = difficultyConfig[difficulty] ?? difficultyConfig.BEGINNER;
+  const typeConfig_ = typeConfig[type] ?? typeConfig.logic;
+  const pointsReward = puzzle.points || 10;
 
   return (
     <div className="rounded-xl border border-slate-700 bg-slate-900/60 p-8 space-y-6">
@@ -35,7 +39,7 @@ export default function PuzzleInfoCard({ puzzle }: PuzzleInfoCardProps) {
           Description
         </h2>
         <p className="text-base text-slate-300 leading-relaxed">
-          {puzzle.description}
+          {puzzleDescription(puzzle)}
         </p>
       </div>
 

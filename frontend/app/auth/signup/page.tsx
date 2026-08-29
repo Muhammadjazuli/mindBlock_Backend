@@ -10,6 +10,8 @@ import Image from "next/image";
 import ErrorBoundary from "@/components/error/ErrorBoundary";
 import { useToast } from "@/components/ui/ToastProvider";
 import { useStellarWalletAuth } from "@/hooks/useStellarWalletAuth";
+import { useGoogleAuth } from "@/hooks/useGoogleAuth";
+import { register } from "@/lib/api/authApi";
 import { WalletType } from "@/lib/stellar/types";
 
 
@@ -23,6 +25,7 @@ const SignUpPage = () => {
     connectAndLogin,
     clearError,
   } = useStellarWalletAuth();
+  const { signInWithGoogle } = useGoogleAuth();
   const [formData, setFormData] = useState({
     username: "",
     fullName: "",
@@ -115,156 +118,36 @@ const SignUpPage = () => {
     }
 
     try {
-      // Format request body to match server expectations
-      const requestBody = {
+      await register({
         email: formData.email,
         username: formData.username,
-        fullname: formData.fullName, // Server expects lowercase 'n'
+        fullname: formData.fullName,
         password: formData.password,
-        userRole: "user", // Default role
-        provider: "local", // Local registration
-      };
+        passwordConfirm: formData.password,
+      });
 
-      console.log("Sending request with data:", requestBody); // Debug log
-
-      const response = await fetch(
-        "http://localhost:3000/users",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(requestBody),
-        },
-      );
-
-      // Log response details for debugging
-      console.log("Response status:", response.status);
-      console.log("Response headers:", response.headers);
-
-      // Checking if response is ok before trying to parse JSON
-      if (!response.ok) {
-        let errorMessage = "Registration failed. Please try again.";
-
-        try {
-          const errorData = await response.json();
-          console.log("Error response data:", errorData); // Debug log
-
-          // Safely extract error message
-          if (typeof errorData === "object" && errorData !== null) {
-            if (typeof errorData.message === "string") {
-              errorMessage = errorData.message;
-            } else if (typeof errorData.error === "string") {
-              errorMessage = errorData.error;
-            } else if (
-              Array.isArray(errorData.errors) &&
-              errorData.errors.length > 0
-            ) {
-              errorMessage = errorData.errors[0];
-            }
-          }
-
-          // Handle specific error cases
-          if (response.status === 409) {
-            showError(
-              "Account Already Exists",
-              errorMessage ||
-                "User already exists with this email or username.",
-            );
-          } else if (response.status === 400) {
-            showError(
-              "Invalid Input",
-              errorMessage ||
-                "Invalid input data. Please check your information.",
-            );
-          } else if (response.status >= 500) {
-            showError("Server Error", "Server error. Please try again later.");
-          } else {
-            showError("Registration Failed", errorMessage);
-          }
-        } catch (parseError) {
-          console.error("Error parsing response:", parseError);
-          // If response isn't JSON, use status-based messages
-          if (response.status === 409) {
-            showError(
-              "Account Already Exists",
-              "An account with this email or username already exists.",
-            );
-          } else if (response.status === 400) {
-            showError(
-              "Invalid Input",
-              "Please check your input and try again.",
-            );
-          } else {
-            showError(
-              "Registration Failed",
-              `Error ${response.status}: ${response.statusText || "Please try again."}`,
-            );
-          }
-        }
-        setIsLoading(false);
-        return;
-      }
-
-      // Parse JSON only if response is ok
-      const data = await response.json();
-      console.log("Success response data:", data); // Debug log
-
-      if (
-        data.accessToken ||
-        data.id ||
-        data.email ||
-        data.message === "User created successfully" ||
-        data.success
-      ) {
-        // If we get a token, store it
-        if (data.accessToken) {
-          try {
-            localStorage.setItem("accessToken", data.accessToken);
-          } catch (storageError) {
-            console.warn("Could not save token to localStorage:", storageError);
-          }
-        }
-
-        // Show success toast
-        showSuccess("Registration Successful", "Welcome to Mind Block!");
-
-        // Redirect to signin page or dashboard based on whether we got a token
-        setTimeout(() => {
-          if (data.accessToken) {
-            router.push("/dashboard");
-          } else {
-            router.push("/auth/signin");
-          }
-        }, 1000); // Small delay to show success message
-      } else {
-        showError(
-          "Invalid Response",
-          "Invalid response from server. Please try again.",
-        );
-      }
+      showSuccess("Account created", "You can now sign in.");
+      router.push("/auth/signin");
     } catch (error) {
-      console.error("Sign up error:", error);
-      if (error instanceof TypeError && error.message.includes("fetch")) {
-        showError(
-          "Network Error",
-          "Could not connect to the server. Please check your internet connection and try again.",
-        );
-      } else {
-        showError(
-          "Network Error",
-          "An unexpected error occurred. Please try again.",
-        );
-      }
+      const message =
+        error instanceof Error ? error.message : "Registration failed. Please try again.";
+      showError("Registration Failed", message);
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGoogleSignUp = () => {
-    showInfo("Google Sign-Up", "Redirecting to Google authentication...");
-    window.location.href =
-      "http://localhost:3000/auth/google-authentication";
+  const handleGoogleSignUp = async () => {
+    try {
+      showInfo("Google Sign-Up", "Opening Google authentication...");
+      await signInWithGoogle();
+      showSuccess("Login Successful", "Welcome to Mind Block!");
+      router.push("/dashboard");
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Google sign-up failed";
+      showError("Google Sign-Up Failed", message);
+    }
   };
 
   const handleWalletConnect = async () => {

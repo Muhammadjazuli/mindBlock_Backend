@@ -11,6 +11,9 @@ import ErrorBoundary from '@/components/error/ErrorBoundary';
 import { useToast } from '@/components/ui/ToastProvider';
 import { useStellarWalletAuth } from '@/hooks/useStellarWalletAuth';
 import { useAuth } from '@/hooks/useAuth';
+import { useGoogleAuth } from '@/hooks/useGoogleAuth';
+import { useGuestSession } from '@/hooks/useGuestSession';
+import { signIn } from '@/lib/api/authApi';
 import { WalletType } from '@/lib/stellar/types';
 import WalletModal, { WalletType as ModalWalletType } from '@/components/ui/WalletModal';
 import { useWalletModal } from '@/hooks/useWalletModal';
@@ -26,6 +29,8 @@ const SignInPage = () => {
     clearError,
   } = useStellarWalletAuth();
   const { loginSuccess, loginFailure, setLoading } = useAuth();
+  const { signInWithGoogle } = useGoogleAuth();
+  const { startGuestSession, isStarting: isGuestStarting } = useGuestSession();
   const { isOpen: isWalletModalOpen, openModal: openWalletModal, closeModal: closeWalletModal } = useWalletModal();
   const [formData, setFormData] = useState({
     username: '',
@@ -78,123 +83,59 @@ const SignInPage = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:3000/auth/signIn', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          email: formData.username,
-          password: formData.password
-        }),
-      });
+      const data = await signIn(formData.username, formData.password);
 
-      // Checking if response is ok before trying to parse JSON
-      if (!response.ok) {
-        try {
-          const errorData = await response.json();
-          // Handle specific error messages from server
-          if (response.status === 401) {
-            const errorMsg = 'Invalid email or password.';
-            showError('Login Failed', errorMsg);
-            loginFailure(errorMsg);
-            setIsLoading(false);
-            setLoading(false);
-          } else if (response.status === 404) {
-            const errorMsg = 'Account not found.';
-            showError('Account Not Found', errorMsg);
-            loginFailure(errorMsg);
-            setIsLoading(false);
-            setLoading(false);
-          } else if (response.status === 400) {
-            const errorMsg = errorData.message || 'Invalid input.';
-            showError('Invalid Input', errorMsg);
-            loginFailure(errorMsg);
-            setIsLoading(false);
-            setLoading(false);
-          } else if (response.status >= 500) {
-            const errorMsg = 'Server error. Please try again later.';
-            showError('Server Error', errorMsg);
-            loginFailure(errorMsg);
-            setIsLoading(false);
-            setLoading(false);
-          } else {
-            const errorMsg = errorData.message || 'Login failed. Please try again.';
-            showError('Login Failed', errorMsg);
-            loginFailure(errorMsg);
-            setIsLoading(false);
-            setLoading(false);
-          }
-        } catch {
-          // If response isn't JSON, use status text or default message
-          if (response.status === 401) {
-            const errorMsg = 'Invalid email or password.';
-            showError('Login Failed', errorMsg);
-            loginFailure(errorMsg);
-            setIsLoading(false);
-            setLoading(false);
-          } else if (response.status === 404) {
-            const errorMsg = 'Account not found.';
-            showError('Account Not Found', errorMsg);
-            loginFailure(errorMsg);
-            setIsLoading(false);
-            setLoading(false);
-          } else {
-            const errorMsg = `Login failed: ${response.statusText || 'Please try again.'}`;
-            showError('Login Failed', errorMsg);
-            loginFailure(errorMsg);
-            setIsLoading(false);
-            setLoading(false);
-          }
-        }
-        setIsLoading(false);
-        setLoading(false);
+      if (data.accessToken && data.refreshToken) {
+        const user = data.user ?? {
+          id: formData.username,
+          email: formData.username,
+          username: formData.username.split('@')[0],
+        };
+
+        loginSuccess(user, data.accessToken, data.refreshToken);
+        showSuccess('Login Successful', 'Welcome back!');
+        router.push('/dashboard');
         return;
       }
 
-      // Parse JSON only if response is ok
-      const data = await response.json();
-
-      if (data.accessToken && data.refreshToken) {
-        // Update Redux state with both tokens
-        const user = {
-          id: data.user?.id || formData.username,
-          email: formData.username,
-          username: data.user?.username || formData.username.split('@')[0],
-        };
-        
-        loginSuccess(user, data.accessToken, data.refreshToken);
-        
-        // Show success toast
-        showSuccess('Login Successful', 'Welcome back!');
-        setIsLoading(false);
-        setLoading(false);
-        
-        // Redirect to dashboard
-        router.push('/dashboard');
-      } else {
-        const errorMsg = 'Invalid response from server. Please try again.';
-        showError('Invalid Response', errorMsg);
-        loginFailure(errorMsg);
-        setIsLoading(false);
-        setLoading(false);
-      }
-    } catch (error) {
-      console.error('Sign in error:', error);
-      const errorMsg = 'Network error.';
-      showError('Network Error', errorMsg);
+      const errorMsg = 'Invalid response from server. Please try again.';
+      showError('Invalid Response', errorMsg);
       loginFailure(errorMsg);
-      setIsLoading(false);
-      setLoading(false);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Login failed. Please try again.';
+      const isNetwork = message === 'Unexpected error occurred' || /network/i.test(message);
+      showError(isNetwork ? 'Network Error' : 'Login Failed', message);
+      loginFailure(message);
     } finally {
       setIsLoading(false);
       setLoading(false);
     }
   };
 
-  const handleGoogleSignIn = () => {
-    showInfo('Google Sign-In', 'Redirecting to Google authentication...');
-    window.location.href = "http://localhost:3000/auth/google-authentication";
+  const handleGoogleSignIn = async () => {
+    try {
+      showInfo('Google Sign-In', 'Opening Google authentication...');
+      await signInWithGoogle();
+      showSuccess('Login Successful', 'Welcome back!');
+      router.push('/dashboard');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Google sign-in failed';
+      showError('Google Sign-In Failed', message);
+    }
+  };
+
+  const handleGuestPlay = async () => {
+    try {
+      await startGuestSession();
+      showSuccess('Guest session started', 'You have 15 minutes to browse puzzles.');
+      router.push('/puzzles');
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : 'Could not start a guest session';
+      showError('Guest Play Failed', message);
+    }
   };
 
   const handleWalletSelect = async (walletType: ModalWalletType) => {
@@ -338,6 +279,15 @@ const SignInPage = () => {
               {isSigning && 'Sign Message in Wallet...'}
               {isLoggingIn && 'Verifying...'}
               {!isConnecting && !isSigning && !isLoggingIn && 'Connect Wallet'}
+            </button>
+
+            <button
+              type="button"
+              onClick={handleGuestPlay}
+              disabled={isGuestStarting}
+              className="w-full h-12 border-2 border-slate-600 text-slate-200 rounded-lg hover:bg-slate-800/80 transition-colors disabled:opacity-50"
+            >
+              {isGuestStarting ? 'Starting guest session...' : 'Continue as guest'}
             </button>
           </div>
 

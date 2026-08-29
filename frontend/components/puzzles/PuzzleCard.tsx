@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import type { Puzzle } from '@/lib/types/puzzles';
+import { puzzleTitle, puzzleDescription } from '@/lib/types/puzzles';
 
 interface PuzzleCardProps {
   puzzle: Puzzle;
@@ -37,14 +38,14 @@ const DIFFICULTY_CONFIG = {
 const PuzzleCard: React.FC<PuzzleCardProps> = ({ puzzle }) => {
   const router = useRouter();
 
-  const typeConfig = TYPE_CONFIG[puzzle.type] ?? TYPE_CONFIG.logic;
+  const typeConfig = TYPE_CONFIG[puzzle.type ?? "logic"];
   const diffConfig = DIFFICULTY_CONFIG[puzzle.difficulty] ?? DIFFICULTY_CONFIG.BEGINNER;
 
   return (
     <button
       onClick={() => router.push(`/puzzles/${puzzle.id}`)}
       className="w-full text-left bg-[#0A1628] border border-gray-800 rounded-xl p-5 flex flex-col gap-4 hover:border-gray-600 hover:bg-[#0d1e38] transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500/50 group"
-      aria-label={`Open puzzle: ${puzzle.title}`}
+      aria-label={`Open puzzle: ${puzzleTitle(puzzle)}`}
     >
       {/* Badges row */}
       <div className="flex items-center gap-2 flex-wrap">
@@ -67,12 +68,12 @@ const PuzzleCard: React.FC<PuzzleCardProps> = ({ puzzle }) => {
 
       {/* Title */}
       <h3 className="text-[#E6E6E6] font-semibold text-base leading-snug group-hover:text-white transition-colors">
-        {puzzle.title}
+        {puzzleTitle(puzzle)}
       </h3>
 
       {/* Description */}
       <p className="text-gray-400 text-sm leading-relaxed line-clamp-2">
-        {puzzle.description}
+        {puzzleDescription(puzzle)}
       </p>
 
       {/* Footer: category + time limit */}

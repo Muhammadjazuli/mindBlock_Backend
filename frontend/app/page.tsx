@@ -36,19 +36,16 @@ const MindBlockLanding = () => {
         <div className="w-full space-y-4 pt-8 ">
           <button
             className="w-full bg-blue-500 border-b-4 border-blue-700 hover:bg-blue-600 text-white font-semibold py-4 px-6 rounded-xl transition-colors duration-200 shadow-lg"
-            onClick={() => router.push("auth/signup")}
+            onClick={() => router.push("/auth/signup")}
           >
             Register & Play
           </button>
-          <div className="text-center">
-            <span className="text-gray-400 text-sm">Have an account? </span>
-            <button
-              className="text-blue-400 text-sm hover:text-blue-300 font-medium transition-colors duration-200"
-              onClick={() => router.push("auth/signin")}
-            >
-              Sign in
-            </button>
-          </div>
+          <button
+            className="w-full border-2 border-blue-500 text-blue-300 font-semibold py-4 px-6 rounded-xl hover:bg-blue-500/10 transition-colors duration-200"
+            onClick={() => router.push("/auth/signin")}
+          >
+            Sign in / Guest play
+          </button>
         </div>
       </div>
 

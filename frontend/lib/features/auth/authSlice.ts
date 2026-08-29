@@ -1,4 +1,9 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import {
+  API_BASE_URL,
+  ACCESS_TOKEN_KEY,
+  REFRESH_TOKEN_KEY,
+} from '../../api/config';
 
 // Types
 export interface User {
@@ -7,6 +12,8 @@ export interface User {
   walletAddress?: string;
   username?: string;
   avatar?: string;
+  xp?: number;
+  level?: number;
   createdAt?: string;
   updatedAt?: string;
 }
@@ -24,9 +31,9 @@ export interface AuthState {
 // Initial state
 const initialState: AuthState = {
   user: null,
-  token: typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null,
-  refreshToken: typeof window !== 'undefined' ? localStorage.getItem('refreshToken') : null,
-  isAuthenticated: typeof window !== 'undefined' ? !!localStorage.getItem('accessToken') : false,
+  token: typeof window !== 'undefined' ? localStorage.getItem(ACCESS_TOKEN_KEY) : null,
+  refreshToken: typeof window !== 'undefined' ? localStorage.getItem(REFRESH_TOKEN_KEY) : null,
+  isAuthenticated: typeof window !== 'undefined' ? !!localStorage.getItem(ACCESS_TOKEN_KEY) : false,
   isLoading: false,
   error: null,
   isRestoring: false,
@@ -46,29 +53,27 @@ export const restoreSession = createAsyncThunk(
   'auth/restoreSession',
   async (_, { rejectWithValue, getState }) => {
     try {
-      const token = localStorage.getItem('accessToken');
+      const token = localStorage.getItem(ACCESS_TOKEN_KEY);
       if (!token) {
         throw new Error('No token found');
       }
-      
-      // Validate token with backend by fetching user data
-      const response = await fetch('/api/auth/me', {
+
+      const response = await fetch(`${API_BASE_URL}/auth/me`, {
         headers: {
-          'Authorization': `Bearer ${token}`,
+          Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json',
         },
       });
-      
+
       if (!response.ok) {
         throw new Error('Invalid token');
       }
-      
+
       const user = await response.json();
       return { token, user };
     } catch (error) {
-      // Clear invalid tokens
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      localStorage.removeItem(ACCESS_TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
       return rejectWithValue('Session expired');
     }
   }
@@ -78,29 +83,27 @@ export const refreshToken = createAsyncThunk(
   'auth/refreshToken',
   async (_, { rejectWithValue, getState }) => {
     try {
-      const refreshTokenValue = localStorage.getItem('refreshToken');
+      const refreshTokenValue = localStorage.getItem(REFRESH_TOKEN_KEY);
       if (!refreshTokenValue) {
         throw new Error('No refresh token found');
       }
-      
-      // Call refresh token endpoint
-      const response = await fetch('/api/auth/refresh', {
+
+      const response = await fetch(`${API_BASE_URL}/auth/refreshToken`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ refreshToken: refreshTokenValue }),
       });
-      
+
       if (!response.ok) {
         throw new Error('Failed to refresh token');
       }
-      
+
       const data = await response.json();
-      
-      // Update stored tokens
-      localStorage.setItem('accessToken', data.accessToken);
-      localStorage.setItem('refreshToken', data.refreshToken);
+
+      localStorage.setItem(ACCESS_TOKEN_KEY, data.accessToken);
+      localStorage.setItem(REFRESH_TOKEN_KEY, data.refreshToken);
       
       return { 
         accessToken: data.accessToken, 
@@ -109,8 +112,8 @@ export const refreshToken = createAsyncThunk(
       };
     } catch (error) {
       // Clear invalid tokens
-      localStorage.removeItem('accessToken');
-      localStorage.removeItem('refreshToken');
+      localStorage.removeItem(ACCESS_TOKEN_KEY);
+      localStorage.removeItem(REFRESH_TOKEN_KEY);
       return rejectWithValue('Failed to refresh token');
     }
   }
@@ -131,8 +134,8 @@ const authSlice = createSlice({
       
       // Store tokens in localStorage
       if (typeof window !== 'undefined') {
-        localStorage.setItem('accessToken', action.payload.token);
-        localStorage.setItem('refreshToken', action.payload.refreshToken);
+        localStorage.setItem(ACCESS_TOKEN_KEY, action.payload.token);
+        localStorage.setItem(REFRESH_TOKEN_KEY, action.payload.refreshToken);
       }
     },
     
@@ -145,7 +148,8 @@ const authSlice = createSlice({
       
       // Remove token from localStorage
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('accessToken');
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
       }
     },
     
@@ -159,8 +163,8 @@ const authSlice = createSlice({
       
       // Remove tokens from localStorage
       if (typeof window !== 'undefined') {
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
+        localStorage.removeItem(ACCESS_TOKEN_KEY);
+        localStorage.removeItem(REFRESH_TOKEN_KEY);
       }
     },
     

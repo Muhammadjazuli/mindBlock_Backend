@@ -22,6 +22,7 @@ import {
   refreshToken,
   type User,
 } from '../lib/features/auth/authSlice';
+import { logoutSession } from '../lib/api/authApi';
 
 // Auth hook that provides auth state and actions
 export function useAuth() {
@@ -48,21 +49,12 @@ export function useAuth() {
   const handleLogout = useCallback(async () => {
     if (refreshTokenValue) {
       try {
-        // Call backend logout endpoint to invalidate the session
-        await fetch('/api/auth/logout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ refreshToken: refreshTokenValue }),
-        });
+        await logoutSession(refreshTokenValue);
       } catch (error) {
         console.error('Logout error:', error);
       }
     }
-    // Clear local state regardless of backend response
     dispatch(logout());
-    // Redirect to signin page
     window.location.href = '/auth/signin';
   }, [dispatch, refreshTokenValue]);
 

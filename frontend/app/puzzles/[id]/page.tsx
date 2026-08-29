@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { usePuzzle } from "@/hooks/usePuzzles";
+import { puzzleTitle } from "@/lib/types/puzzles";
 import HintsSection from "@/components/puzzles/HintsSection";
 import PuzzleHeader from "@/components/puzzles/PuzzleHeader";
 import PuzzleInfoCard from "@/components/puzzles/PuzzleInfoCard";
@@ -27,7 +28,7 @@ export default function PuzzleDetailPage() {
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 px-4 py-8">
       <div className="mx-auto max-w-4xl">
-        <PuzzleHeader puzzleTitle={puzzle.title} />
+        <PuzzleHeader puzzleTitle={puzzleTitle(puzzle)} />
 
         <main className="space-y-6 mt-8">
           <PuzzleInfoCard puzzle={puzzle} />

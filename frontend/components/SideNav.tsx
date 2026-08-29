@@ -2,11 +2,13 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Home, Trophy, User, Bell, LogOut } from "lucide-react";
+import { Home, Trophy, User, Bell, LogOut, Puzzle, Flame } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 
 const navItems = [
   { label: "Home", href: "/dashboard", icon: Home },
+  { label: "Puzzles", href: "/puzzles", icon: Puzzle },
+  { label: "Streak", href: "/streak", icon: Flame },
   { label: "Leaderboard", href: "/leaderboard", icon: Trophy },
   { label: "Profile", href: "/profile", icon: User },
   { label: "Feeds", href: "/feeds", icon: Bell },
